@@ -2361,7 +2361,7 @@ static NvShader *shader_load(NSString *pc, int stage) {
         int max_aid = -1;
         for (int i = 0; i < o->rf.nb; i++) max_aid = MAX(max_aid, o->rf.b[i].aid);
         o->arg_len = o->ae.encodedLength;
-        if (o->arg_len != (NSUInteger)(8 * (max_aid + 1)) || (o->arg_len & 7))
+        if (o->arg_len < (NSUInteger)(8 * (max_aid + 1)) || (o->arg_len & 7))
             MDIE("着色器 %s 参数块布局异常：encodedLength=%lu maxAid=%d", o->key, (unsigned long)o->arg_len, max_aid);
     }
     if (o->rf.has_c1) c1_store(o);
@@ -3175,7 +3175,8 @@ static int encode_args(id<MTLCommandEncoder> en, NvShader *sh, int nvn_stage, in
     pthread_mutex_unlock(&g_rmu);
     NSUInteger arg_len = sh->arg_len ? sh->arg_len : sh->ae.encodedLength;
     id<MTLBuffer> ab; size_t off = arena_alloc(arg_len, &ab);
-    memcpy((uint8_t *)ab.contents + off, slots, arg_len);
+    memset((uint8_t *)ab.contents + off, 0, arg_len);
+    memcpy((uint8_t *)ab.contents + off, slots, MIN(arg_len, sizeof slots));
     bind_args(en, nvn_stage, metal_vertex, ab, g_cur_arena->gpu + off, off, sh->rf.abi);
     sh->ab_buf = ab; sh->ab_gpu = g_cur_arena->gpu + off; sh->ab_off = off; sh->ab_pass = g_pass.serial; g_args_dirty[nvn_stage] = 0;
     g_stat_args_enc++;
