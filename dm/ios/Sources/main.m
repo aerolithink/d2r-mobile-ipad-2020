@@ -5,6 +5,36 @@
 static int g_nofile_was, g_nofile_now;   // 启动时的文件描述符软上限（原值 / 现值），开日志后记一行 | File descriptor soft limit at launch (old / new value); one line is logged after the log opens
 #import <Metal/Metal.h>
 #import <BackgroundAssets/BackgroundAssets.h>
+
+#ifndef BAAssetPack_DEFINED
+#define BAAssetPack_DEFINED
+typedef NS_ENUM(NSInteger, BAAssetPackStatus) {
+    BAAssetPackStatusUnknown = 0,
+};
+@interface BAAssetPack : NSObject
+@property (readonly) NSInteger version;
+@property (readonly) int64_t downloadSize;
+@end
+
+@interface BAAssetPackManager : NSObject
+@property (class, readonly, strong) BAAssetPackManager *sharedManager;
+@property (weak) id delegate;
+- (NSURL *)URLForPath:(NSString *)path error:(NSError **)error;
+- (BOOL)assetPackIsAvailableLocallyWithIdentifier:(NSString *)identifier;
+- (void)getLocalStatusOfAssetPackWithIdentifier:(NSString *)identifier completionHandler:(void (^)(BAAssetPackStatus status))completionHandler;
+- (void)getAssetPackWithIdentifier:(NSString *)identifier completionHandler:(void (^)(BAAssetPack *pack, NSError *error))completionHandler;
+- (void)ensureLocalAvailabilityOfAssetPack:(BAAssetPack *)pack completionHandler:(void (^)(NSError *error))completionHandler;
+@end
+
+@protocol BAManagedAssetPackDownloadDelegate <NSObject>
+@optional
+- (void)downloadOfAssetPack:(BAAssetPack *)p hasProgress:(NSProgress *)g;
+- (void)downloadOfAssetPackBegan:(BAAssetPack *)p;
+- (void)downloadOfAssetPackFinished:(BAAssetPack *)p;
+- (void)downloadOfAssetPackPaused:(BAAssetPack *)p;
+- (void)downloadOfAssetPack:(BAAssetPack *)p failedWithError:(NSError *)e;
+@end
+#endif
 #import "asset_dl.h"
 #import <CommonCrypto/CommonDigest.h>
 #include <sys/mman.h>
