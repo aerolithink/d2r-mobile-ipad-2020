@@ -286,11 +286,18 @@ dm_ta_glyph dm_ta_current_set(const dm_tg_snapshot *s,uint64_t button,uint64_t n
         "CODE_SIGN_IDENTITY=",
         "build"
     ]
-    res = subprocess.run(build_cmd, capture_output=True, text=True)
-    if res.returncode != 0:
-        log("xcodebuild 输出:")
-        print(res.stdout[-2000:])
-        die(f"xcodebuild 编译失败: {res.stderr}")
+    proc = subprocess.Popen(build_cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1)
+    err_lines = []
+    for line in proc.stdout:
+        print(line, end="", flush=True)
+        if ": error:" in line or "fatal error:" in line or "** BUILD FAILED **" in line:
+            err_lines.append(line.strip())
+    proc.wait()
+    if proc.returncode != 0:
+        log("🔴 xcodebuild 编译失败！关键错误行：")
+        for el in err_lines:
+            print(f"  [ERROR] {el}")
+        die("xcodebuild 编译失败，详情见上方编译日志")
 
     # 定位新编译的 DmIOS
     find_cmd = ["find", os.path.expanduser("~/Library/Developer/Xcode/DerivedData"),

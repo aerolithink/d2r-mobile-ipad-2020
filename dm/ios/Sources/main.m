@@ -1229,9 +1229,16 @@ int main(int argc, char *argv[]) {
           // 测试开关 DM_TEST_NO_METAL3=1 当成不支持
           // The graphics layer needs Metal 3 (bindless use that writes gpuAddress directly into argument buffers): available from A14 / M1 (the Apple7 family); A13 and earlier do not support it. If unsupported, do not start the game and show a message (instead of crashing later while unpacking / building pipelines).
           // Test switch DM_TEST_NO_METAL3=1 treats the device as unsupported
-          if (![dev supportsFamily:MTLGPUFamilyApple5] || getenv("DM_TEST_NO_METAL3")) {
+#if !DM_NVN_M3
+          if (![dev supportsFamily:MTLGPUFamilyMetal3] || getenv("DM_TEST_NO_METAL3")) {
+              g_block_title = T("dmGpuOldTitle"); g_block_msg = T("dmGpuOldMsg"); g_block_why = @"图形芯片不支持 Metal 3";
+              plog("boot: 🔴 显卡 %s 不支持 Metal 3%s——不起游戏，弹框说明", dev.name.UTF8String, getenv("DM_TEST_NO_METAL3") ? "（测试开关 DM_TEST_NO_METAL3）" : ""); }
+#else
+          // 老接口版（DM_NVN_M3=1）：放宽到 Apple5 (A12/A12X/A12Z 等，枚举值 1005)
+          if (![dev supportsFamily:(MTLGPUFamily)1005] || getenv("DM_TEST_NO_METAL3")) {
               g_block_title = T("dmGpuOldTitle"); g_block_msg = T("dmGpuOldMsg"); g_block_why = @"图形芯片不支持 Apple5 GPU";
               plog("boot: 🔴 显卡 %s 不支持 Apple5%s——不起游戏，弹框说明", dev.name.UTF8String, getenv("DM_TEST_NO_METAL3") ? "（测试开关 DM_TEST_NO_METAL3）" : ""); }
+#endif
           plog("boot: 显卡 %s，BC 压缩格式%s", dev.name.UTF8String, g_no_bc ? (getenv("DM_TEST_NO_BC") ? "按测试开关 DM_TEST_NO_BC 当成不支持" : "不支持——不起游戏，弹框说明后退出") : "支持"); }
         if (g_no_bc) {   // 不支持 BC：有配套的老机型补充包就照常起（覆盖层换 ASTC 版，见 boot_prepare），没有就弹框 | BC not supported: if the matching Legacy Device Pack is present, start as usual (the overlay switches to the ASTC version, see boot_prepare); otherwise show an alert
             NSString *d = astc_pack_locate(g_astc_why, sizeof g_astc_why);
