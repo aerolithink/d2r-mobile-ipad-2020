@@ -163,6 +163,96 @@ def main():
     with open(xcconfig, "a") as xcf:
         xcf.write(f"\nOTHER_LDFLAGS = $(inherited) $(DM_FRAMEWORKS) -lz {segprot_flags}\n")
 
+    # 填充必要头文件与桩代码，避免依赖 Switch 游戏原版文件
+    p_hud_exp = os.path.join(host_dir, "dm_hud_exp.h")
+    if not os.path.exists(p_hud_exp):
+        with open(p_hud_exp, "w") as f:
+            f.write("#pragma once\n#include <stdint.h>\nstatic uint32_t k_exp[100];\n")
+
+    p_vault_tab = os.path.join(host_dir, "dm_vault_tab.h")
+    if not os.path.exists(p_vault_tab):
+        with open(p_vault_tab, "w") as f:
+            f.write('#pragma once\n#include <stdint.h>\n#define VT_NPART 10\nstatic const char *vt_part_name[VT_NPART] = {""};\ntypedef struct { uint8_t kind, part, tier; uint16_t row, lvl; int16_t set; const char *key, *icon; } vt_row;\nstatic vt_row vt_rows[1] = {{0}};\n#define VT_NROW 1\nstatic const char *vt_set_key[1] = {""};\n#define VT_NSET 1\n')
+
+    p_bright = os.path.join(host_dir, "dm_bright_levels.inc")
+    if not os.path.exists(p_bright):
+        with open(p_bright, "w") as f:
+            f.write("{0, 0, 0, 0}\n")
+
+    p_art_c = os.path.join(repo_dir, "dm", "ios", "Sources", "dm_touch_native_art.c")
+    if not os.path.exists(p_art_c):
+        with open(p_art_c, "w") as f:
+            f.write('''#include "dm_touch_native_art.h"
+#include "../../host/dm_input.h"
+#include <stddef.h>
+#include <stdint.h>
+
+const dm_ta_atlas dm_ta_atlases[DM_TA_ATLASES]={
+ {"dm_native_skill_0",2048,2048,128,16,140},
+ {"dm_native_skill_1",2048,2048,128,16,140},
+ {"dm_native_skill_2",2048,2048,128,16,140},
+ {"dm_native_skill_3",2048,2048,128,16,140},
+ {"dm_native_skill_4",2048,2048,128,16,140},
+ {"dm_native_skill_5",2048,2048,128,16,140},
+ {"dm_native_skill_6",2048,2048,128,16,140},
+ {"dm_native_skill_7",2048,2048,128,16,140},
+ {"dm_native_skill_8",2048,2048,128,16,140},
+};
+const char dm_ta_manifest_sha[]="";
+const char dm_ta_geometry_sha[]="";
+const char dm_ta_binding_sha[]="";
+
+static dm_ta_glyph unknown(uint32_t id,const char *reason) {
+    return (dm_ta_glyph){DM_TA_UNKNOWN,-1,-1,-1,-1,-1,id,reason};
+}
+int dm_ta_frame_at(int atlas,int frame,dm_ta_frame *out) {
+    if(!out || atlas<0 || atlas>=DM_TA_ATLASES || frame<0)return 0;
+    const dm_ta_atlas *a=&dm_ta_atlases[atlas];
+    if(frame>=a->count || frame*a->pitch+a->frame_width>a->width)return 0;
+    *out=(dm_ta_frame){frame*a->pitch,0,a->frame_width,a->height};return 1;
+}
+dm_ta_glyph dm_ta_skill(uint32_t id) {
+    return unknown(id,"unknown_skill");
+}
+dm_ta_glyph dm_ta_current(const dm_tg_snapshot *s,uint64_t button,uint64_t now) { return dm_ta_current_set(s,button,now,0); }
+dm_ta_glyph dm_ta_current_set(const dm_tg_snapshot *s,uint64_t button,uint64_t now,int skill_set) {
+    return unknown(UINT32_MAX,"empty_unknown");
+}
+''')
+
+    # 填充 Gen 资源目录与符号链接，满足 xcodegen 校验
+    hud_dir = os.path.join(gen_dir, "assets", "NativeHUD", "v4")
+    os.makedirs(hud_dir, exist_ok=True)
+    hud_src = os.path.join(app_dir, "hud_v4_ui")
+    hud_dst = os.path.join(hud_dir, "hud_v4_ui")
+    if os.path.exists(hud_src) and not os.path.exists(hud_dst):
+        os.symlink(hud_src, hud_dst)
+    elif not os.path.exists(hud_dst):
+        os.makedirs(hud_dst, exist_ok=True)
+
+    hud_json = os.path.join(hud_dir, "hud.json")
+    if not os.path.exists(hud_json):
+        with open(hud_json, "w") as f:
+            f.write("{}")
+
+    mg_dir = os.path.join(gen_dir, "assets", "NativeHUD")
+    os.makedirs(mg_dir, exist_ok=True)
+    mg_src = os.path.join(app_dir, "mapgoal")
+    mg_dst = os.path.join(mg_dir, "mapgoal")
+    if os.path.exists(mg_src) and not os.path.exists(mg_dst):
+        os.symlink(mg_src, mg_dst)
+    elif not os.path.exists(mg_dst):
+        os.makedirs(mg_dst, exist_ok=True)
+
+    for item in ["romfs_overlay", "romfs_overlay_variants", "romfs_overlay_astc",
+                 "romfs_overlay_astc_variants", "dm", "msl", "save_ref", "save_ref_warlock"]:
+        src = os.path.join(app_dir, item)
+        dst = os.path.join(gen_dir, item)
+        if os.path.exists(src) and not os.path.exists(dst):
+            os.symlink(src, dst)
+        elif not os.path.exists(dst):
+            os.makedirs(dst, exist_ok=True)
+
     # 准备编译工程
     os.chdir(os.path.join(repo_dir, "dm", "ios"))
     log("正在调用 xcodegen 生成工程 ...")
