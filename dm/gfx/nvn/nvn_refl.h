@@ -15,6 +15,7 @@ enum { NVN_RB_CBUF = 1, NVN_RB_SAMP, NVN_RB_TEX, NVN_RB_IMG, NVN_RB_TBUF,
        NVN_RB_SBUFP, NVN_RB_SUPPORT, NVN_RB_C1, NVN_RB_DRV0, NVN_RB_DRV2, NVN_RB_SAMPT, NVN_RB_UBOP };   // UBOP：计算阶段 uniform 槽 r 的设备指针（Maxwell 计算阶段经 c0 地址表 + 全局内存读 uniform）   // SAMPT：采样器取自贴图槽 r 的合并句柄（高位 = 采样器号）   // 绑定种类（json 的 type）；IMG = 可写贴图（D3D u_r，NVN 图像槽 r）；TBUF = 类型化缓冲（D3D t_r Buffer<T>，NVN 贴图槽 r 的缓冲贴图） | UBOP: device pointer of compute-stage uniform slot r (the Maxwell compute stage reads uniforms via the c0 address table + global memory)   // SAMPT: the sampler is taken from the combined handle of texture slot r (high bits = sampler ID)   // Binding kind (type in the json); IMG = writable texture (D3D u_r, NVN image slot r); TBUF = typed buffer (D3D t_r Buffer<T>, buffer texture in NVN texture slot r)
 enum { NVN_DPF_FLOAT = 0, NVN_DPF_UINT, NVN_DPF_SINT, NVN_DPF_DEPTH };            // 哑贴图像素类（由 msl_type 定） | Dummy texture pixel class (determined by msl_type)
 enum { NVN_CT_FLOAT = 0, NVN_CT_UINT, NVN_CT_INT };                               // 顶点输入分量类型 | Vertex input component type
+enum { NVN_CLS_NONE = 0, NVN_CLS_BUFFER = 1, NVN_CLS_TEXTURE = 2, NVN_CLS_SAMPLER = 3 }; // 离散绑定资源种类
 #define NVN_REFL_MAXB 80
 #define NVN_REFL_MAXV 32
 
@@ -30,6 +31,7 @@ typedef struct {
     struct { uint8_t loc, ct, nvn; } v[NVN_REFL_MAXV];   // loc：Metal 顶点属性槽（DXBC 输入寄存器）；nvn：NVN 顶点属性号（HLSL 语义 ATTRn 的 n） | loc: Metal vertex attribute slot (DXBC input register); nvn: NVN vertex attribute number (the n of HLSL semantic ATTRn)
     uint16_t tg[3];          // 计算线程组大小（无 = 0） | Compute thread group size (none = 0)
     uint8_t route_b, has_c1; // B 路线；有 c1 常数段 | Route B; has a c1 constant segment
+    uint8_t is_discrete;     // 逐槽离散绑定（A12Z / Apple Family 5 专用）
     uint8_t drv_read[3];     // B：运行时读驱动段 c0 / c2（下标 0、2；出包时由 MSL 静态统计，tools/dmsh_build.py drv_reads） | B: reads driver segments c0 / c2 at runtime (indices 0, 2; gathered statically from the MSL at packaging time, tools/dmsh_build.py drv_reads)
     uint16_t c1_len;         // c1 常数段长度（B；全库 0 / 256 / 512 / 768） | Length of the c1 constant segment (B; 0 / 256 / 512 / 768 across the whole library)
     // 全覆盖首绘证明用（dmsh_build.py raster_facts；缺字段 = 不可证）：顶点——位置 xyz 原样取自属性 pos_attr（-1 = 否），w 为常数 1（pos_w1）或取同属性 .w；

@@ -115,11 +115,11 @@ def main():
     if not os.path.isdir(msl_dir):
         die(f"原 IPA 中缺少 msl 目录！")
     
-    shader_dir = os.path.join(msl_dir, "b-c974829dda39")
+    shader_dir = os.path.join(msl_dir, "b-b3e7e0042d1f")
     if not os.path.isdir(shader_dir):
-        die(f"原 IPA 中缺少着色器库 (msl/b-c974829dda39)！")
+        die(f"原 IPA 中缺少 A12Z 离散着色器库 (msl/b-b3e7e0042d1f)！")
     shader_count = len(os.listdir(shader_dir))
-    log(f"✓ 确认找到已编译好的 A12Z 着色器库: {shader_count} 个着色器文件位于 {shader_dir}")
+    log(f"✓ 确认找到已编译好的 A12Z 离散着色器库: {shader_count} 个着色器文件位于 {shader_dir}")
 
     # 提取 Switch 核心段
     old_binary = os.path.join(app_dir, "DmIOS")

@@ -2356,7 +2356,7 @@ static NvShader *shader_load(NSString *pc, int stage) {
     if (nvn_refl_from_json(j, &o->rf, err, sizeof err)) { MLOG("【红】着色器 %s 反射转换失败：%s", pc.UTF8String, err); return nil; }
     if (rt_range_on()) o->range_ro=rt_range_bindings_ro(j);
     o->fn = [lib newFunctionWithName:j[@"entry"]]; o->stage = stage; strlcpy(o->key, pc.UTF8String, sizeof o->key);
-    if (o->rf.nb) {
+    if (o->rf.nb && !o->rf.is_discrete) {
         o->ae = [o->fn newArgumentEncoderWithBufferIndex:o->rf.abi];
         int max_aid = -1;
         for (int i = 0; i < o->rf.nb; i++) max_aid = MAX(max_aid, o->rf.b[i].aid);
@@ -3052,11 +3052,26 @@ static inline int m3_use_seen(void *p, uint32_t u) {
     return 0;
 }
 #endif
+static inline void bind_discrete_buf(id<MTLCommandEncoder> en, int nvn_stage, int metal_vertex, id<MTLBuffer> buf, NSUInteger off, NSUInteger slot) {
+    if (nvn_stage == 5) [(id<MTLComputeCommandEncoder>)en setBuffer:buf offset:off atIndex:slot];
+    else if (metal_vertex) [(id<MTLRenderCommandEncoder>)en setVertexBuffer:buf offset:off atIndex:slot];
+    else [(id<MTLRenderCommandEncoder>)en setFragmentBuffer:buf offset:off atIndex:slot];
+}
+static inline void bind_discrete_tex(id<MTLCommandEncoder> en, int nvn_stage, int metal_vertex, id<MTLTexture> tex, NSUInteger slot) {
+    if (nvn_stage == 5) [(id<MTLComputeCommandEncoder>)en setTexture:tex atIndex:slot];
+    else if (metal_vertex) [(id<MTLRenderCommandEncoder>)en setVertexTexture:tex atIndex:slot];
+    else [(id<MTLRenderCommandEncoder>)en setFragmentTexture:tex atIndex:slot];
+}
+static inline void bind_discrete_samp(id<MTLCommandEncoder> en, int nvn_stage, int metal_vertex, id<MTLSamplerState> samp, NSUInteger slot) {
+    if (nvn_stage == 5) [(id<MTLComputeCommandEncoder>)en setSamplerState:samp atIndex:slot];
+    else if (metal_vertex) [(id<MTLRenderCommandEncoder>)en setVertexSamplerState:samp atIndex:slot];
+    else [(id<MTLRenderCommandEncoder>)en setFragmentSamplerState:samp atIndex:slot];
+}
 static int encode_args(id<MTLCommandEncoder> en, NvShader *sh, int nvn_stage, int metal_vertex) {
-    if (!sh->ae) return 1;
+    if (!sh->ae && !sh->rf.is_discrete) return 1;
     uint64_t slots[NVN_REFL_MAXB] = {0};
     args_sync_dirty();
-    if (!passdump() && !g_args_dirty[nvn_stage] && sh->ab_buf && sh->ab_pass == g_pass.serial && nvn_stage != 5) {
+    if (!sh->rf.is_discrete && !passdump() && !g_args_dirty[nvn_stage] && sh->ab_buf && sh->ab_pass == g_pass.serial && nvn_stage != 5) {
         bind_args(en, nvn_stage, metal_vertex, sh->ab_buf, sh->ab_gpu, sh->ab_off, sh->rf.abi);
         g_stat_args_reuse++;
         return 1;
@@ -3099,13 +3114,22 @@ static int encode_args(id<MTLCommandEncoder> en, NvShader *sh, int nvn_stage, in
                     FILE *f = fopen(p, "wb"); if (f) { fwrite((const void *)u->addr, 1, u->size, f); fclose(f); } else RED_ONCE(41, "CBDUMP 写不出 %s", p);
                 }
             }
-            slots[aid] = gpu;
+            if (sh->rf.is_discrete) {
+                bind_discrete_buf(en, nvn_stage, metal_vertex, (__bridge id<MTLBuffer>)mb, (NSUInteger)mo, b->slot);
+            } else {
+                slots[aid] = gpu;
+            }
             USE((__bridge id<MTLBuffer>)mb, MTLResourceUsageRead);
         } else if (b->kind == NVN_RB_SAMP || b->kind == NVN_RB_SAMPT) {   // SAMPT：合并句柄（贴图号 | 采样器号 << 20）的采样器部分 | SAMPT: the sampler part of a combined handle (texture ID | sampler ID << 20)
             int sid = reg < 128 ? (int)((b->kind == NVN_RB_SAMPT ? S.tex[nvn_stage][reg] : S.samp[nvn_stage][reg]) >> 20) : 0;
             __unsafe_unretained id<MTLSamplerState> ss = sid ? (__bridge id<MTLSamplerState>)samp_fast(sid) : nil;
-            slots[aid] = sid && sid < g_nsreg && g_srid[sid] ? g_srid[sid] : dummy_samp_rid();
-            USE_SAMP(ss ? ss : dummy_samp(), MTLResourceUsageRead);
+            id<MTLSamplerState> actual_ss = ss ? ss : dummy_samp();
+            if (sh->rf.is_discrete) {
+                bind_discrete_samp(en, nvn_stage, metal_vertex, actual_ss, b->slot);
+            } else {
+                slots[aid] = sid && sid < g_nsreg && g_srid[sid] ? g_srid[sid] : dummy_samp_rid();
+            }
+            USE_SAMP(actual_ss, MTLResourceUsageRead);
             if (bl && sid > 0) { int ok = sid < g_nsreg && g_sreg_ok[sid]; samp_par sp = ok ? g_sreg[sid] : (samp_par){0};   // 本段已持 g_rmu | g_rmu is already held in this section
                 if (ok) PD("B %llu st%d samp reg%d sid=%d mag=%d min=%d（0 最近点 / 1 双线性；2–5 带 mip）", g_stat_pass, nvn_stage, reg, sid, (int)sp.magf, (int)sp.minf); }
         } else if (b->kind == NVN_RB_TEX) {
@@ -3118,7 +3142,11 @@ static int encode_args(id<MTLCommandEncoder> en, NvShader *sh, int nvn_stage, in
                        (unsigned long)(t.parentTexture ? t.parentRelativeLevel : 0), (unsigned long)t.mipmapLevelCount,
                        (unsigned long)(t.parentTexture ? t.parentRelativeSlice : 0), (unsigned long)t.arrayLength, (unsigned long)t.textureType);
             if (!t) { t = dummy_tex(b->dtt, b->dpf); trid = g_dummy_tex_rid[b->dtt & 7][b->dpf & 3]; }
-            slots[aid] = trid;
+            if (sh->rf.is_discrete) {
+                bind_discrete_tex(en, nvn_stage, metal_vertex, t, b->slot);
+            } else {
+                slots[aid] = trid;
+            }
             USE(t, MTLResourceUsageRead);
         } else if (b->kind == NVN_RB_IMG) {   // 可写贴图：NVN 图像槽 r（BindImages）↔ D3D u_r | Writable texture: NVN image slot r (BindImages) ↔ D3D u_r
             int tid = reg < 32 ? (int)(S.img[nvn_stage][reg] & 0xfffff) : 0;
@@ -3126,7 +3154,11 @@ static int encode_args(id<MTLCommandEncoder> en, NvShader *sh, int nvn_stage, in
             if (passdump()) PD("W %llu st%d reg%d tid=%d %s ser=%llu", g_stat_pass, nvn_stage, reg, tid, t ? "实" : "哑", t && tid < g_ntreg ? g_treg[tid].t.serial : 0ull);
             if (t && !(t.usage & MTLTextureUsageShaderWrite)) { RED_ONCE(32, "图像槽绑的贴图没有可写用途（贴图号 %d）", tid); t = nil; }
             if (!t) { t = dummy_img(b->dtt, b->dpf); trid = g_dummy_img_rid[b->dtt & 7][b->dpf & 3]; }   // 未绑：D3D 语义写入丢弃——写进专用哑贴图，不污染读出 0 的那套 | Unbound: D3D semantics discard the write - write into a dedicated dummy texture so the set that reads 0 is not polluted
-            slots[aid] = trid;
+            if (sh->rf.is_discrete) {
+                bind_discrete_tex(en, nvn_stage, metal_vertex, t, b->slot);
+            } else {
+                slots[aid] = trid;
+            }
             USE(t, MTLResourceUsageRead | MTLResourceUsageWrite);
         } else if (b->kind == NVN_RB_TBUF) {   // 类型化缓冲：贴图槽 r 里的缓冲贴图（目标 BUFFER） | Typed buffer: the buffer texture (target BUFFER) in texture slot r
             int tid = reg < 128 ? (int)(S.tex[nvn_stage][reg] & 0xfffff) : 0;
@@ -3134,20 +3166,40 @@ static int encode_args(id<MTLCommandEncoder> en, NvShader *sh, int nvn_stage, in
             if (t && t.textureType != MTLTextureTypeTextureBuffer) { RED_ONCE(40, "类型化缓冲槽绑的不是缓冲贴图（贴图号 %d 类型 %lu）", tid, (unsigned long)t.textureType); t = nil; }
             if (bl) PD("B %llu st%d tbuf reg%d tid=%d %s ser=%llu", g_stat_pass, nvn_stage, reg, tid, t ? "实" : "哑", t && tid < g_ntreg ? g_treg[tid].t.serial : 0ull);
             if (!t) { t = dummy_tbuf(b->dpf); trid = g_dummy_tbuf_rid[b->dpf & 3]; }
-            slots[aid] = trid;
+            if (sh->rf.is_discrete) {
+                bind_discrete_tex(en, nvn_stage, metal_vertex, t, b->slot);
+            } else {
+                slots[aid] = trid;
+            }
             USE(t, MTLResourceUsageRead);
         } else if (b->kind == NVN_RB_SBUFP || b->kind == NVN_RB_UBOP) {   // B：存储缓冲 / 计算阶段 uniform 是设备指针，按 NVN 槽取地址 | B: storage buffers / compute-stage uniforms are device pointers; the address is taken by NVN slot
             const p_bind_buf *u = reg < 16 ? (b->kind == NVN_RB_UBOP ? &S.ubo[nvn_stage][reg] : &S.ssbo[nvn_stage][reg]) : NULL;
             void *mb; uint64_t mo, gpu;
-            if (u && u->addr && mtl_gpu_addr(u->addr, u->size ? u->size : 1, &mb, &mo, &gpu)) { use_rec("buf", u->addr, u->size, 0, NULL); slots[aid] = gpu; USE((__bridge id<MTLBuffer>)mb, b->rw ? MTLResourceUsageRead | MTLResourceUsageWrite : MTLResourceUsageRead); }
-            else { slots[aid] = dummy_buf_gpu(); USE(dummy_buf(), MTLResourceUsageRead); }
+            if (u && u->addr && mtl_gpu_addr(u->addr, u->size ? u->size : 1, &mb, &mo, &gpu)) {
+                use_rec("buf", u->addr, u->size, 0, NULL);
+                if (sh->rf.is_discrete) bind_discrete_buf(en, nvn_stage, metal_vertex, (__bridge id<MTLBuffer>)mb, (NSUInteger)mo, b->slot);
+                else slots[aid] = gpu;
+                USE((__bridge id<MTLBuffer>)mb, b->rw ? MTLResourceUsageRead | MTLResourceUsageWrite : MTLResourceUsageRead);
+            } else {
+                if (sh->rf.is_discrete) bind_discrete_buf(en, nvn_stage, metal_vertex, dummy_buf(), 0, b->slot);
+                else slots[aid] = dummy_buf_gpu();
+                USE(dummy_buf(), MTLResourceUsageRead);
+            }
             if (bl) PD("B %llu st%d sbufp reg%d %s addr=%#llx size=%llu %s", g_stat_pass, nvn_stage, reg, u && u->addr ? "实" : "哑", u ? (unsigned long long)u->addr : 0ull, u ? (unsigned long long)u->size : 0ull, b->rw ? "rw" : "ro");
         } else if (b->kind == NVN_RB_C1) {      // B：着色器自带常数段，取着色器时建好 | B: the shader's own constant segment, built when the shader is fetched
             id<MTLBuffer> cb = sh->c1buf ? sh->c1buf : zero_bank();   // c1 长 0（全库 600 份）而着色器仍声明：读 0 | c1 has length 0 (600 of them in the whole library) yet the shader still declares it: reads 0
-            slots[aid] = (sh->c1buf ? sh->c1_gpu : zero_bank_gpu()) + (sh->c1buf ? sh->c1off : 0);
+            if (sh->rf.is_discrete) {
+                bind_discrete_buf(en, nvn_stage, metal_vertex, cb, sh->c1buf ? sh->c1off : 0, b->slot);
+            } else {
+                slots[aid] = (sh->c1buf ? sh->c1_gpu : zero_bank_gpu()) + (sh->c1buf ? sh->c1off : 0);
+            }
             USE(cb, MTLResourceUsageRead);
         } else if (b->kind == NVN_RB_SUPPORT) {   // support_buffer：缩放 1.0、BGRA 互换 0、视口变换未关闭（视口字段不读） | support_buffer: scale 1.0, BGRA swap 0, viewport transform not disabled (viewport fields are not read)
-            slots[aid] = support_gpu();
+            if (sh->rf.is_discrete) {
+                bind_discrete_buf(en, nvn_stage, metal_vertex, support_buf(), 0, b->slot);
+            } else {
+                slots[aid] = support_gpu();
+            }
             USE(support_buf(), MTLResourceUsageRead);
         } else if (b->kind == NVN_RB_DRV0 || b->kind == NVN_RB_DRV2) {
             // NVN 驱动常量段：出包时静态统计证明不读的供 0；读的按当前绑定现填——c0 = 存储缓冲表（基址 + 0x10 r：地址 64 位、大小 32 位），
@@ -3155,8 +3207,11 @@ static int encode_args(id<MTLCommandEncoder> en, NvShader *sh, int nvn_stage, in
             // NVN driver constant segments: those proven unread by static analysis at packaging time are supplied as 0; those read are filled on the spot from the current bindings - c0 = storage buffer table (base + 0x10 r: address 64 bits, size 32 bits),
             // c2 = texture handle table (0x168 + 8 r) and sampler handle table (0x568 + 8 r), the values being the NVN handles the game gave at bind time; positions read outside the tables are registered at packaging time and reported a failure at load time
             int bank = b->kind == NVN_RB_DRV2 ? 2 : 0;
-            if (!sh->rf.drv_read[bank]) { slots[aid] = zero_bank_gpu(); USE(zero_bank(), MTLResourceUsageRead); }
-            else {
+            if (!sh->rf.drv_read[bank]) {
+                if (sh->rf.is_discrete) bind_discrete_buf(en, nvn_stage, metal_vertex, zero_bank(), 0, b->slot);
+                else slots[aid] = zero_bank_gpu();
+                USE(zero_bank(), MTLResourceUsageRead);
+            } else {
                 id<MTLBuffer> db; size_t doff = arena_alloc(0xA00, &db); uint8_t *d = (uint8_t *)db.contents + doff; memset(d, 0, 0xA00);
                 if (bank == 0) {
                     int base = nvn_stage == 0 ? 0x110 : nvn_stage == 5 ? 0x310 : nvn_stage == 1 ? 0x510 : -1;
@@ -3165,7 +3220,8 @@ static int encode_args(id<MTLCommandEncoder> en, NvShader *sh, int nvn_stage, in
                 } else {
                     for (int r = 0; r < 128; r++) { uint32_t th = (uint32_t)S.tex[nvn_stage][r], sh_ = (uint32_t)S.samp[nvn_stage][r]; memcpy(d + 0x168 + 8 * r, &th, 4); memcpy(d + 0x568 + 8 * r, &sh_, 4); }
                 }
-                slots[aid] = g_cur_arena->gpu + doff;
+                if (sh->rf.is_discrete) bind_discrete_buf(en, nvn_stage, metal_vertex, db, doff, b->slot);
+                else slots[aid] = g_cur_arena->gpu + doff;
                 USE(db, MTLResourceUsageRead);
             }
         } else RED_ONCE(46, "绑定种类 %d 未实现", b->kind);
@@ -3173,6 +3229,10 @@ static int encode_args(id<MTLCommandEncoder> en, NvShader *sh, int nvn_stage, in
     #undef USE
     #undef USE_SAMP
     pthread_mutex_unlock(&g_rmu);
+    if (sh->rf.is_discrete) {
+        g_stat_args_enc++;
+        return 1;
+    }
     NSUInteger arg_len = sh->arg_len ? sh->arg_len : sh->ae.encodedLength;
     id<MTLBuffer> ab; size_t off = arena_alloc(arg_len, &ab);
     memset((uint8_t *)ab.contents + off, 0, arg_len);

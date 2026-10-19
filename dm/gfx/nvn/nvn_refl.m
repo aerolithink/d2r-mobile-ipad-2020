@@ -28,10 +28,16 @@ int nvn_refl_from_json(NSDictionary *j, nvn_refl *o, char *err, int errlen) {
         if (![bs isKindOfClass:[NSArray class]]) FAIL("缺 bindings");
         if (bs.count > NVN_REFL_MAXB) FAIL("绑定 %lu 个，超上限 %d", (unsigned long)bs.count, NVN_REFL_MAXB);
         o->route_b = 1; o->abi = 0;   // spirv-cross 第 0 组 → [[buffer(0)]] | spirv-cross set 0 → [[buffer(0)]]
+        if ([j[@"bind_model"] isEqual:@"discrete"]) o->is_discrete = 1;
         for (NSDictionary *b in bs) {
             NSString *k = b[@"kind"]; nvn_rbind *r = &o->b[o->nb];
             id rg = b[@"reg"]; int reg = [rg isKindOfClass:[NSNumber class]] ? [rg intValue] : -1, aid = [b[@"arg_id"] intValue];
             r->aid = (uint16_t)aid; r->reg = reg < 0 ? 0 : (uint16_t)reg;
+            NSString *cls = b[@"cls"];
+            if ([cls isEqualToString:@"buffer"]) r->cls = NVN_CLS_BUFFER;
+            else if ([cls isEqualToString:@"texture"]) r->cls = NVN_CLS_TEXTURE;
+            else if ([cls isEqualToString:@"sampler"]) r->cls = NVN_CLS_SAMPLER;
+            if (b[@"slot"]) r->slot = (uint8_t)[b[@"slot"] intValue];
             if ([k isEqualToString:@"cbuf"]) r->kind = NVN_RB_CBUF;
             else if ([k isEqualToString:@"samp"]) r->kind = NVN_RB_SAMP;
             else if ([k isEqualToString:@"samp_tex"]) r->kind = NVN_RB_SAMPT;
