@@ -1,5 +1,6 @@
 name: DmIOS
 options:
+  xcodeVersion: "15.0"
   bundleIdPrefix: ${DM_BUNDLE_ID}
   deploymentTarget:
     iOS: "26.0"   # 命令翻译层走 Metal 4（MTL4CommandQueue 等，iOS 26 起）；着色器编译的最低版本（tools/ios_metal.py）不动，免得缓存全量失效 | The command translation layer uses Metal 4 (MTL4CommandQueue etc., from iOS 26); the minimum version for shader compilation (tools/ios_metal.py) is left unchanged, to avoid invalidating the whole cache
