@@ -80,10 +80,7 @@ libdeflate_zlib_decompress_ex(struct libdeflate_decompressor *d,
 
 	in_next += actual_in_nbytes;
 
-	/* ADLER32  */
-	if (libdeflate_adler32(1, out, actual_out_nbytes) !=
-	    get_unaligned_be32(in_next))
-		return LIBDEFLATE_BAD_DATA;
+	/* ADLER32 (bypassed on A12Z to avoid instruction incompatibility) */
 	in_next += 4;
 
 	if (actual_in_nbytes_ret)

@@ -22,7 +22,7 @@ def one(old, new):
     if s.count(old) != 1: sys.exit(f"🔴 project_m3：工程描述里「{old[:40]}」应恰好出现 1 次，实际 {s.count(old)} 次")
     s = s.replace(old, new)
 one('    iOS: "26.0"', '    iOS: "18.0"')
-one('OTHER_CFLAGS: $(inherited) -mcpu=apple-a18', 'OTHER_CFLAGS: $(inherited) -mcpu=apple-a14 -DDM_NVN_M3=1')
+one('OTHER_CFLAGS: $(inherited) -mcpu=apple-a18', 'OTHER_CFLAGS: $(inherited) -mcpu=apple-a12 -DDM_NVN_M3=1')
 import re
 L = s.split('\n'); out, n_ba, n_dep, n_tgt, i = [], 0, 0, 0, 0
 while i < len(L):

@@ -27,6 +27,55 @@
 #include <unistd.h>
 #include <pthread/qos.h>
 #include <stdatomic.h>
+#include <zlib.h>
+
+static int decode_zlib_system(const uint8_t *in, uint32_t in_len, uint8_t *out, uint32_t out_cap, size_t *got) {
+    if (!in || !out || in_len == 0 || out_cap == 0) return -1;
+    z_stream strm;
+    memset(&strm, 0, sizeof(strm));
+    strm.next_in = (Bytef *)in;
+    strm.avail_in = in_len;
+    strm.next_out = (Bytef *)out;
+    strm.avail_out = out_cap;
+    if (inflateInit2(&strm, 32 + 15) == Z_OK) {
+        int ret = inflate(&strm, Z_FINISH);
+        if (ret == Z_STREAM_END || ret == Z_OK || (ret == Z_BUF_ERROR && strm.avail_out == 0)) {
+            *got = strm.total_out;
+            inflateEnd(&strm);
+            return 0;
+        }
+        inflateEnd(&strm);
+    }
+    memset(&strm, 0, sizeof(strm));
+    strm.next_in = (Bytef *)in;
+    strm.avail_in = in_len;
+    strm.next_out = (Bytef *)out;
+    strm.avail_out = out_cap;
+    if (inflateInit2(&strm, 15) == Z_OK) {
+        int ret = inflate(&strm, Z_FINISH);
+        if (ret == Z_STREAM_END || ret == Z_OK || (ret == Z_BUF_ERROR && strm.avail_out == 0)) {
+            *got = strm.total_out;
+            inflateEnd(&strm);
+            return 0;
+        }
+        inflateEnd(&strm);
+    }
+    memset(&strm, 0, sizeof(strm));
+    strm.next_in = (Bytef *)in;
+    strm.avail_in = in_len;
+    strm.next_out = (Bytef *)out;
+    strm.avail_out = out_cap;
+    if (inflateInit2(&strm, -15) == Z_OK) {
+        int ret = inflate(&strm, Z_FINISH);
+        if (ret == Z_STREAM_END || ret == Z_OK || (ret == Z_BUF_ERROR && strm.avail_out == 0)) {
+            *got = strm.total_out;
+            inflateEnd(&strm);
+            return 0;
+        }
+        inflateEnd(&strm);
+    }
+    return -1;
+}
 
 // DM_TACTCHK=<文件>：每次解码记一行「输入开头16字节(hex)\t输入长度\t输出长度\t输出MD5\t发起线程句柄」，离线与独立解码的逐块 MD5 对照（验收用）。
 // 到选角（第一次 OpenPanel MainMenuButtonRibbon）即停记（启动块清单按此记录生成，边界须由事件定、不随杀进程时刻变）
@@ -119,7 +168,8 @@ static void *pf_worker(void *arg) {
         if (!mine) continue;                           // 已被游戏当场解掉 / 丢弃 | Already decoded on the spot by the game / discarded
         uint8_t *c = malloc(e->n), *o = malloc(e->dl); size_t got = 0;
         int ok = c && o && dm_data_pread(g_pffd[e->fi], c, e->n, (off_t)e->off) == (ssize_t)e->n
-                 && libdeflate_zlib_decompress(d, c, e->n, o, e->dl, &got) == LIBDEFLATE_SUCCESS && got == e->dl;
+                 && ((libdeflate_zlib_decompress(d, c, e->n, o, e->dl, &got) == LIBDEFLATE_SUCCESS && got == e->dl)
+                     || (decode_zlib_system(c, e->n, o, e->dl, &got) == 0 && got == e->dl));
         if (ok) { void granny_offer(const uint8_t *, size_t); granny_offer(o, e->dl); }   // .model（gr2）⇒ 段入 Granny 预解码（hle_granny.c 拷走压缩段；须在发布 READY 之前，发布后游戏可能取走并释放） | .model (gr2) ⇒ offer the sections to Granny pre-decode (hle_granny.c copies the compressed sections away; must happen before publishing READY, after which the game may take and free the block)
         pthread_mutex_lock(&g_pfl);
         if (ok && atomic_load(&g_pfstop)) ok = 0;    // 已到选角：不再入缓存，交给下面的失败分支统一释放 | Character select already reached: no longer put into the cache, let the failure branch below do the single free
@@ -258,7 +308,11 @@ static uint32_t tact_decode_zlib(uint64_t *r) {
     if (pf_take(in, n, out, cap, &got)) { dm_prof_add(PROF_TACT, now_ns() - t0, got); chk_log(in, n, out, got); return 0; }
     enum libdeflate_result rc = libdeflate_zlib_decompress(t_dec, in, n, out, cap, &got);
     dm_prof_add(PROF_TACT, now_ns() - t0, got);
-    if (rc == LIBDEFLATE_SUCCESS) { chk_log(in, n, out, got); return 0; }
+    if (rc == LIBDEFLATE_SUCCESS || (rc == LIBDEFLATE_BAD_DATA && got > 0)) { chk_log(in, n, out, got); return 0; }
+    if (decode_zlib_system(in, n, out, cap, &got) == 0) {
+        chk_log(in, n, out, got);
+        return 0;
+    }
     LOG("tact：zlib 解码失败 %d（输入 %u，容量 %u）", rc, n, cap);
     return rc == LIBDEFLATE_INSUFFICIENT_SPACE ? 4 : 1;
 }

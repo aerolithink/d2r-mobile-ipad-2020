@@ -15,13 +15,14 @@ enum { NVN_RB_CBUF = 1, NVN_RB_SAMP, NVN_RB_TEX, NVN_RB_IMG, NVN_RB_TBUF,
        NVN_RB_SBUFP, NVN_RB_SUPPORT, NVN_RB_C1, NVN_RB_DRV0, NVN_RB_DRV2, NVN_RB_SAMPT, NVN_RB_UBOP };   // UBOP：计算阶段 uniform 槽 r 的设备指针（Maxwell 计算阶段经 c0 地址表 + 全局内存读 uniform）   // SAMPT：采样器取自贴图槽 r 的合并句柄（高位 = 采样器号）   // 绑定种类（json 的 type）；IMG = 可写贴图（D3D u_r，NVN 图像槽 r）；TBUF = 类型化缓冲（D3D t_r Buffer<T>，NVN 贴图槽 r 的缓冲贴图） | UBOP: device pointer of compute-stage uniform slot r (the Maxwell compute stage reads uniforms via the c0 address table + global memory)   // SAMPT: the sampler is taken from the combined handle of texture slot r (high bits = sampler ID)   // Binding kind (type in the json); IMG = writable texture (D3D u_r, NVN image slot r); TBUF = typed buffer (D3D t_r Buffer<T>, buffer texture in NVN texture slot r)
 enum { NVN_DPF_FLOAT = 0, NVN_DPF_UINT, NVN_DPF_SINT, NVN_DPF_DEPTH };            // 哑贴图像素类（由 msl_type 定） | Dummy texture pixel class (determined by msl_type)
 enum { NVN_CT_FLOAT = 0, NVN_CT_UINT, NVN_CT_INT };                               // 顶点输入分量类型 | Vertex input component type
-#define NVN_REFL_MAXB 64
+#define NVN_REFL_MAXB 80
 #define NVN_REFL_MAXV 32
 
 typedef struct {
     uint8_t kind, rw;        // rw：存储缓冲 access 为 read_write / write / device | rw: storage buffer access is read_write / write / device
     uint8_t dtt, dpf;        // 贴图槽未绑时的哑贴图：MTLTextureType 数值、像素类 | Dummy texture when the texture slot is unbound: MTLTextureType value, pixel class
     uint16_t reg, aid;       // D3D 寄存器号、参数缓冲内序号 | D3D register number, index within the argument buffer
+    uint8_t cls, slot;       // 离散绑定槽位类型与槽号 | Discrete binding class and slot index
 } nvn_rbind;
 typedef struct {
     int nb, abi, nv;         // 绑定数、参数缓冲槽、顶点输入数 | Binding count, argument buffer slot, vertex input count
