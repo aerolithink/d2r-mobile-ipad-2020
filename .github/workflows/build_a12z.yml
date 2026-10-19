@@ -1,0 +1,40 @@
+name: Build A12Z Playable IPA
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - 'dm/**'
+      - 'rebuild_for_a12z.py'
+      - '.github/workflows/build_a12z.yml'
+
+jobs:
+  build:
+    runs-on: macos-14
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install xcodegen
+        run: |
+          brew install xcodegen
+
+      - name: Download Base IPA with Shaders
+        run: |
+          curl -L -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            -o DmIOS-unsigned-a12z.ipa \
+            https://github.com/aerolithink/d2r-mobile-ipad-2020/releases/download/v1.0-base/DmIOS-unsigned-a12z.ipa
+          ls -lh DmIOS-unsigned-a12z.ipa
+
+      - name: Rebuild DmIOS and Repack IPA
+        run: |
+          python3 rebuild_for_a12z.py DmIOS-unsigned-a12z.ipa D2RMobile-A12Z-Playable.ipa
+          ls -lh D2RMobile-A12Z-Playable.ipa
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: D2RMobile-A12Z-Playable
+          path: D2RMobile-A12Z-Playable.ipa
