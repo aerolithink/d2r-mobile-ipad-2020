@@ -32,7 +32,22 @@ typedef NS_ENUM(NSInteger, BAAssetPackStatus) {
 - (void)downloadOfAssetPackBegan:(BAAssetPack *)p;
 - (void)downloadOfAssetPackFinished:(BAAssetPack *)p;
 - (void)downloadOfAssetPackPaused:(BAAssetPack *)p;
-- (void)downloadOfAssetPack:(BAAssetPack *)p failedWithError:(NSError *)e;
+@end
+
+@implementation BAAssetPack
+@end
+
+@implementation BAAssetPackManager
++ (instancetype)sharedManager { return nil; }
+- (NSURL *)URLForPath:(NSString *)path error:(NSError **)error { return nil; }
+- (BOOL)assetPackIsAvailableLocallyWithIdentifier:(NSString *)identifier { return NO; }
+- (void)getLocalStatusOfAssetPackWithIdentifier:(NSString *)identifier completionHandler:(void (^)(BAAssetPackStatus status))completionHandler {}
+- (void)getAssetPackWithIdentifier:(NSString *)identifier completionHandler:(void (^)(BAAssetPack *pack, NSError *error))completionHandler {
+    if (completionHandler) completionHandler(nil, [NSError errorWithDomain:@"BA" code:-1 userInfo:nil]);
+}
+- (void)ensureLocalAvailabilityOfAssetPack:(BAAssetPack *)pack completionHandler:(void (^)(NSError *error))completionHandler {
+    if (completionHandler) completionHandler([NSError errorWithDomain:@"BA" code:-1 userInfo:nil]);
+}
 @end
 #endif
 #import "asset_dl.h"
