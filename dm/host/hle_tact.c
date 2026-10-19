@@ -31,48 +31,23 @@
 
 static int decode_zlib_system(const uint8_t *in, uint32_t in_len, uint8_t *out, uint32_t out_cap, size_t *got) {
     if (!in || !out || in_len == 0 || out_cap == 0) return -1;
-    z_stream strm;
-    memset(&strm, 0, sizeof(strm));
-    strm.next_in = (Bytef *)in;
-    strm.avail_in = in_len;
-    strm.next_out = (Bytef *)out;
-    strm.avail_out = out_cap;
-    if (inflateInit2(&strm, 32 + 15) == Z_OK) {
-        int ret = inflate(&strm, Z_FINISH);
-        if (ret == Z_STREAM_END || ret == Z_OK || (ret == Z_BUF_ERROR && strm.avail_out == 0)) {
-            *got = strm.total_out;
+    int modes[] = { 15, -15, 32 + 15, 9, -9 };
+    for (int m = 0; m < 5; m++) {
+        z_stream strm;
+        memset(&strm, 0, sizeof(strm));
+        strm.next_in = (Bytef *)in;
+        strm.avail_in = in_len;
+        strm.next_out = (Bytef *)out;
+        strm.avail_out = out_cap;
+        if (inflateInit2(&strm, modes[m]) == Z_OK) {
+            int ret = inflate(&strm, Z_FINISH);
+            if (ret == Z_STREAM_END || ret == Z_OK || (ret == Z_BUF_ERROR && strm.avail_out == 0) || strm.total_out > 0) {
+                *got = strm.total_out;
+                inflateEnd(&strm);
+                return 0;
+            }
             inflateEnd(&strm);
-            return 0;
         }
-        inflateEnd(&strm);
-    }
-    memset(&strm, 0, sizeof(strm));
-    strm.next_in = (Bytef *)in;
-    strm.avail_in = in_len;
-    strm.next_out = (Bytef *)out;
-    strm.avail_out = out_cap;
-    if (inflateInit2(&strm, 15) == Z_OK) {
-        int ret = inflate(&strm, Z_FINISH);
-        if (ret == Z_STREAM_END || ret == Z_OK || (ret == Z_BUF_ERROR && strm.avail_out == 0)) {
-            *got = strm.total_out;
-            inflateEnd(&strm);
-            return 0;
-        }
-        inflateEnd(&strm);
-    }
-    memset(&strm, 0, sizeof(strm));
-    strm.next_in = (Bytef *)in;
-    strm.avail_in = in_len;
-    strm.next_out = (Bytef *)out;
-    strm.avail_out = out_cap;
-    if (inflateInit2(&strm, -15) == Z_OK) {
-        int ret = inflate(&strm, Z_FINISH);
-        if (ret == Z_STREAM_END || ret == Z_OK || (ret == Z_BUF_ERROR && strm.avail_out == 0)) {
-            *got = strm.total_out;
-            inflateEnd(&strm);
-            return 0;
-        }
-        inflateEnd(&strm);
     }
     return -1;
 }
