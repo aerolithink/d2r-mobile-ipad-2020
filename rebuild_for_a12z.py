@@ -6,7 +6,7 @@ rebuild_for_a12z.py - 一键为 iPad Pro 2020 (A12Z) 编译并打包 Diablo II: 
     python3 rebuild_for_a12z.py /path/to/DmIOS-unsigned-a12z.ipa [输出.ipa]
 
 原理：
-    1. 解压现有的 DmIOS-unsigned-a12z.ipa，复用其中已编译好的 27,996 个逐槽着色器（msl/b-b3e7e0042d1f）及全部 UI 资源。
+    1. 解压现有的 DmIOS-unsigned-a12z.ipa，复用其中已编译好的着色器（msl/b-c974829dda39）及全部 UI 资源。
     2. 从原包 DmIOS 二进制中自动提取嵌入的 Switch 游戏段（main.patched.bin 与 sdk.patched.bin）。
     3. 用当前源码（包含 A12Z 的 zlib 解压修复、Apple5 GPU 支持、80 槽反射缓冲）重新编译 DmIOS 可执行文件。
     4. 替换进 Payload/DmIOS.app/DmIOS，保留已编译好的全部着色器与资源，打包生成新的可用 IPA。
@@ -115,11 +115,11 @@ def main():
     if not os.path.isdir(msl_dir):
         die(f"原 IPA 中缺少 msl 目录！")
     
-    b3_dir = os.path.join(msl_dir, "b-b3e7e0042d1f")
-    if not os.path.isdir(b3_dir):
-        die(f"原 IPA 中缺少针对 A12Z 离散绑定的着色器库 (msl/b-b3e7e0042d1f)！")
-    shader_count = len(os.listdir(b3_dir))
-    log(f"✓ 确认找到已编译好的 A12Z 着色器库: {shader_count} 个着色器文件位于 {b3_dir}")
+    shader_dir = os.path.join(msl_dir, "b-c974829dda39")
+    if not os.path.isdir(shader_dir):
+        die(f"原 IPA 中缺少着色器库 (msl/b-c974829dda39)！")
+    shader_count = len(os.listdir(shader_dir))
+    log(f"✓ 确认找到已编译好的 A12Z 着色器库: {shader_count} 个着色器文件位于 {shader_dir}")
 
     # 提取 Switch 核心段
     old_binary = os.path.join(app_dir, "DmIOS")
