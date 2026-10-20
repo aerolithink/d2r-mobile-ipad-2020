@@ -28,7 +28,7 @@ for name in ('TouchCustom_touch_swap_above', 'TouchCustom_touch_swap_above_near'
 assert nodes['TouchCustom_touch_swap_above_Text']['fields']['rect']['height'] == 360
 for suffix in ('Near', 'Far'):
     assert any(n.get('fields', {}).get('text') == '@dmCustomTouchSwap' + suffix for n in nodes.values())
-host = (root / 'host/dm_custom.c').read_text()
+host = (root / 'host/dm_custom.c').read_text(encoding='utf-8')
 keys = re.findall(r'"([a-z_0-9]+)"', re.search(r'k_keys\[\].*?=\s*\{(.*?)\}', host, re.S)[1])
 assert keys == [key for key, _ in layout._CUSTOM_ALL]
 defaults = [int(x) for x in re.search(r'k_def\[NK\].*?=\s*\{(.*?)\}', host, re.S)[1].split(',')]

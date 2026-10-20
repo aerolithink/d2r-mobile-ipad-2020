@@ -61,6 +61,8 @@ float dm_bright_k(void) {   // 图形层每帧调（单线程：出图 / 回放�
     static int fixed = -2; static float kf;
     if (fixed == -2) { const char *e = getenv("DM_BRIGHT_K"); fixed = e != NULL; if (e) { kf = (float)atof(e); LOG("DM_BRIGHT_K=%g：3D 画面曝光由测试开关固定", kf); } }
     if (fixed) return kf;
+    int dm_custom_get(const char *key);
+    if (!dm_custom_get("bright_boost")) return 1.0f;   // 默认关闭：还原暴雪原版暗黑氛围与深沉阴影；勾选开启后才进行动态曝光提亮
     static double logk = 0; static uint64_t last; static int lwhy = -1, larea = -2; static uint64_t llog; static double ltgt = -1;
     uint64_t t = now_ns();
     { int dm_loadscreen_up(void); if (dm_loadscreen_up()) { last = t; static int tr = -1; static unsigned n; if (tr < 0) tr = getenv("DM_BRIGHT_TRACE") != NULL; if (tr && n++ % 6 == 0) LOG("3D 画面加亮：k %.3f（读取画面中，保持）", exp(logk)); return (float)exp(logk); } }   // 读取画面（进出局、走进洞口）：保持当前 k，撤掉后从原值平滑走到新目标，不先掉回 1 | loading screen (entering/leaving a run, walking into a cave entrance): keep the current k, and after it is taken down move smoothly from the old value to the new target without dropping back to 1 first
