@@ -313,6 +313,12 @@ dm_ta_glyph dm_ta_current_set(const dm_tg_snapshot *s,uint64_t button,uint64_t n
     log("正在用新编译的 DmIOS 替换原 IPA 中的执行文件...")
     shutil.copy2(new_binary, old_binary)
 
+    c1_src = os.path.join(script_dir, "dm", "gfx", "nvn", "c1_full.tsv")
+    c1_dst = os.path.join(app_dir, "dm", "c1_full.tsv")
+    if os.path.isfile(c1_src) and os.path.isdir(os.path.dirname(c1_dst)):
+        shutil.copy2(c1_src, c1_dst)
+        log(f"已同步更新 {c1_dst}")
+
     log(f"正在打包最终 IPA: {out_ipa} ...")
     if os.path.exists(out_ipa):
         os.remove(out_ipa)

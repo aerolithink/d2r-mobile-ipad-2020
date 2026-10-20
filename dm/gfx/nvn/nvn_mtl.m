@@ -3228,8 +3228,8 @@ static int encode_args(id<MTLCommandEncoder> en, NvShader *sh, int nvn_stage, in
                     if (base < 0) RED_ONCE(45, "阶段 %d 的着色器读驱动段 c0，存储缓冲表基址未实测", nvn_stage);
                     else for (int r = 0; r < 16; r++) { uint64_t a = S.ssbo[nvn_stage][r].addr; uint32_t n = (uint32_t)S.ssbo[nvn_stage][r].size; memcpy(d + base + 16 * r, &a, 8); memcpy(d + base + 16 * r + 8, &n, 4); }
                 } else {
-                    for (int r = 0; r < 8; r++) { uint32_t im = (uint32_t)S.img[nvn_stage][r]; memcpy(d + 0x120 + 8 * r, &im, 4); }
-                    for (int r = 0; r < 128; r++) { uint32_t th = (uint32_t)S.tex[nvn_stage][r], sh_ = (uint32_t)S.samp[nvn_stage][r]; memcpy(d + 0x168 + 8 * r, &th, 4); memcpy(d + 0x568 + 8 * r, &sh_, 4); }
+                    for (int r = 0; r < 8; r++) { uint64_t im = S.img[nvn_stage][r]; memcpy(d + 0x120 + 8 * r, &im, 8); }
+                    for (int r = 0; r < 128; r++) { uint64_t th = S.tex[nvn_stage][r], sh_ = S.samp[nvn_stage][r]; memcpy(d + 0x168 + 8 * r, &th, 8); memcpy(d + 0x568 + 8 * r, &sh_, 8); }
                 }
                 if (sh->rf.is_discrete) bind_discrete_buf(en, nvn_stage, metal_vertex, db, doff, b->slot);
                 else slots[aid] = g_cur_arena->gpu + doff;
