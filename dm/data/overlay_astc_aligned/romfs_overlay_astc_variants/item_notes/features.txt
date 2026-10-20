@@ -1,0 +1,6 @@
+item_notes
+data/local/lng/strings/chinese-overlay.json
+data/local/lng/strings/item-names.json
+data/local/lng/strings/item-runes.json
+data/local/lng/strings/levels.json
+data/local/lng/strings/shrines.json

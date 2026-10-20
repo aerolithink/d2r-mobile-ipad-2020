@@ -1,0 +1,50 @@
+UseItemController	4c4adb8b	双击使用
+OpenHoradricCubeController	e2d89ec6	双击打开
+ReadScrollController	61e448cc	双击阅读
+UsePotionOfLifeController	2ccab0ae	双击永久增加20点生命值
+UseBookOfSkillController	619bdd63	双击增加你的技能点
+UseScrollOfResistanceController	bc185cbc	双击施法
+UseTokenOfAbsolutionController	9a7778b6	双击重设属性技能点
+UseTerrorTokenAct1Controller	aefa10c5	双击恐惧化第一幕
+UseTerrorTokenAct2Controller	3005cb15	双击恐惧化第二幕
+UseTerrorTokenAct3Controller	45921fbf	双击恐惧化第三幕
+UseTerrorTokenAct4Controller	5ebcc635	双击恐惧化第四幕
+UseTerrorTokenAct5Controller	0bd3c1fd	双击恐惧化第五幕
+comparisonTooltipController	0abebcab	
+hireComparisonTooltipController	2f147b1d	
+StrYouDiedConsole	5336efaf	你挂了
+ControllerInteractButton	54234e14	
+ControllerTitleScreenPrompt	d701b1f2	点击屏幕开始
+EnterCharacterName	c516bdc5	
+ControllerCycleComparisonTooltips	d53c0a25	再点一次与另一件比较
+SelectButtonNoteText	aa4e91fa	
+MoviePlaybackHoldToSkip_switch	f3a05873	
+UseItemController	3c07d84d	Double-tap to Use
+OpenHoradricCubeController	3c06b741	Double-tap to Open
+ReadScrollController	5b76ecf7	Double-tap to Read
+UsePotionOfLifeController	74604765	Double-tap to permanently add 20 to Life
+UseBookOfSkillController	3a031cc6	Double-tap to learn skill of your choice
+UseScrollOfResistanceController	ce192aed	Double-tap to Cast
+UseTokenOfAbsolutionController	3ba19ef3	Double-tap to reset Stat/Skill Points
+UseTerrorTokenAct1Controller	73cb07eb	Double-tap to terrorize Act 1
+UseTerrorTokenAct2Controller	8c394882	Double-tap to terrorize Act 2
+UseTerrorTokenAct3Controller	558bcf92	Double-tap to terrorize Act 3
+UseTerrorTokenAct4Controller	07eadb68	Double-tap to terrorize Act 4
+UseTerrorTokenAct5Controller	9f1ff50e	Double-tap to terrorize Act 5
+comparisonTooltipController	48cc0c36	
+hireComparisonTooltipController	a97423d0	
+StrYouDiedConsole	e2908c71	You have died
+ControllerInteractButton	54234e14	
+ControllerTitleScreenPrompt	75c1a3c8	Tap the Screen to Begin
+EnterCharacterName	8334a399	
+ControllerCycleComparisonTooltips	389c3ec9	Tap again to compare with the other
+SelectButtonNoteText	e0bafb15	
+MoviePlaybackHoldToSkip_switch	dab56a9e	
+LevelUpStatsNotificationController	7854f598	你升级了。
+LevelUpNotificationController	7ba311c9	你升级了。
+QuestLogNotificationController	7b65d87d	任务已更新。
+MoviePlaybackHoldToSkip	f3a05873	
+LevelUpStatsNotificationController	525fb31a	You've leveled up.
+LevelUpNotificationController	1e4882b2	You've leveled up.
+QuestLogNotificationController	94d110a8	Quest has been updated.
+MoviePlaybackHoldToSkip	dab56a9e	

@@ -121,6 +121,19 @@ def main():
     shader_count = len(os.listdir(shader_dir))
     log(f"✓ 确认找到已编译好的 A12Z 离散着色器库: {shader_count} 个着色器文件位于 {shader_dir}")
 
+    # 同步更新已精确对齐的 ASTC 贴图覆盖层
+    aligned_base = os.path.join(repo_dir, "dm", "data", "overlay_astc_aligned")
+    if os.path.isdir(aligned_base):
+        log("正在将精确对齐的 ASTC 贴图覆盖层同步至 App ...")
+        for item in ["romfs_overlay_astc", "romfs_overlay_astc_variants"]:
+            s = os.path.join(aligned_base, item)
+            d = os.path.join(app_dir, item)
+            if os.path.exists(s):
+                if os.path.exists(d):
+                    shutil.rmtree(d)
+                shutil.copytree(s, d)
+                log(f"✓ 已同步更新覆盖层: {item}")
+
     # 提取 Switch 核心段
     old_binary = os.path.join(app_dir, "DmIOS")
     extract_dir = os.path.join(work_dir, "extracted")
