@@ -1211,7 +1211,6 @@ def _custom_toggle_row(i, key, label):
     return ('        { "type": "TextBoxWidget", "name": "TouchCustom_%s_Text", "fields": { "rect": { "x": 0, "y": %d, "width": 1000, "height": %d }, "text": "%s", "style": "$StyleSettingsText", "style/options/newlineHandling": "standard" } },\n'
             '        { "type": "ToggleButtonWidget", "name": "TouchCustom_%s", "fields": {\n'
             '            "rect": { "x": 1315, "y": %d, "width": 70, "height": 70 }, "sound": "cursor_menu_select_hd",\n'
-            '            "focusIndicatorPadding": "$OptionsToggleFocusIndicatorPadding", "focusIndicatorFilename": "$OptionsToggleFocusIndicatorFilename", "focusIndicatorOffset": { "x": 0, "y": -4 },\n'
             '            "filename": "Lobby\\\\CreateGame\\\\CreateGame_AdvancedCheckbox",\n'
             '            "untoggledFrame": 0, "untoggledPressedFrame": 1, "untoggledHoveredFrame": 3, "untoggledDisabledFrame": 2,\n'
             '            "toggledFrame": 4, "toggledPressedFrame": 5, "toggledHoveredFrame": 6,\n'
@@ -1234,7 +1233,6 @@ def _custom_lang_row():
     def text(name, x, w, key): return ('        { "type": "TextBoxWidget", "name": "%s", "fields": { "rect": { "x": %d, "y": %d, "width": %d, "height": %d }, "text": "@%s", "style": "$StyleSettingsText", "style/fontFace": "BlizzardGlobal" } },\n' % (name, x, y, w, h, key))
     def box(name, x): return ('        { "type": "ToggleButtonWidget", "name": "%s", "fields": {\n'
             '            "rect": { "x": %d, "y": %d, "width": 70, "height": 70 }, "sound": "cursor_menu_select_hd",\n'
-            '            "focusIndicatorPadding": "$OptionsToggleFocusIndicatorPadding", "focusIndicatorFilename": "$OptionsToggleFocusIndicatorFilename", "focusIndicatorOffset": { "x": 0, "y": -4 },\n'
             '            "filename": "Lobby\\\\CreateGame\\\\CreateGame_AdvancedCheckbox",\n'
             '            "untoggledFrame": 0, "untoggledPressedFrame": 1, "untoggledHoveredFrame": 3, "untoggledDisabledFrame": 2,\n'
             '            "toggledFrame": 4, "toggledPressedFrame": 5, "toggledHoveredFrame": 6,\n'
@@ -1255,7 +1253,6 @@ def _custom_q3d_row(i, setting="q3d"):
                                                 % (name, yy, hh, key, '{ "fontColor": "$FontColorGray", "pointSize": 30, "alignment": { "h": "left", "v": "center" } }' if small else '"$StyleSettingsText"'))
     def box(name, yy): return ('        { "type": "ToggleButtonWidget", "name": "%s", "fields": {\n'
             '            "rect": { "x": 1315, "y": %d, "width": 70, "height": 70 }, "sound": "cursor_menu_select_hd",\n'
-            '            "focusIndicatorPadding": "$OptionsToggleFocusIndicatorPadding", "focusIndicatorFilename": "$OptionsToggleFocusIndicatorFilename", "focusIndicatorOffset": { "x": 0, "y": -4 },\n'
             '            "filename": "Lobby\\\\CreateGame\\\\CreateGame_AdvancedCheckbox",\n'
             '            "untoggledFrame": 0, "untoggledPressedFrame": 1, "untoggledHoveredFrame": 3, "untoggledDisabledFrame": 2,\n'
             '            "toggledFrame": 4, "toggledPressedFrame": 5, "toggledHoveredFrame": 6,\n'

@@ -1316,7 +1316,11 @@ static id<MTLTexture> pkg_upload_(const tex_t *t, uint64_t *stamp) {
     }
     g_bp_up_bytes += total;
     void *mb; uint64_t mo;
+#if DM_NVN_M3
+    int gdec = 0;   // A12Z 等老机型：老机型补充包已将绝大部分贴图换为 ASTC，剩余 BC4 贴图仅数张，走 CPU 解压（<0.3 ms）更稳定安全，避免 1200+ 视图 GPU 调度竞争
+#else
     int gdec = unp && t->d.target != 2 && bcd_fmt(t->d.format) && bcd_pso();   // 无 BC 的 BC1–5：GPU 解排布 + GPU 解压 | BC1–5 without BC: GPU deswizzle + GPU decompression
+#endif
     size_t ctotal = 0;   // 压缩块的暂存大小（GPU 解压时暂存区放的是压缩块） | Staging size of the compressed blocks (with GPU decompression the staging area holds compressed blocks)
     if (gdec) for (unsigned l = 0; l < d.mipmapLevelCount; l++) { uint32_t w = MAX(t->d.width >> l, 1u), h = MAX(t->d.height >> l, 1u); ctotal += (size_t)((w + bw - 1) / bw) * bpb * ((h + bh - 1) / bh) * layers; }
     int use_gpu = (!unp || gdec) && g_nvn_deswz_gpu && mtl_addr((uint64_t)t->mem, t->L.size, &mb, &mo);
@@ -4578,7 +4582,7 @@ static int fz_p2_draw(NvProg *pr, const p_draw *dw, const p_draw_idx *di, uint8_
 }
 static void bloomq_reset(void) { memset(&g_bloomq, 0, sizeof g_bloomq); }
 static int bloomq_enabled(void) {
-    if (g_bloom_q < 0) { const char *e = getenv("DM_NVN_BLOOM_Q"); g_bloom_q = !e || strcmp(e, "0"); }
+    if (g_bloom_q < 0) { const char *e = getenv("DM_NVN_BLOOM_Q"); g_bloom_q = e ? strcmp(e, "0") != 0 : 0; }
     return g_bloom_q;
 }
 static int bloomq_target(uint64_t *ser, int *lv, int *sl) {
